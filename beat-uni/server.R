@@ -47,8 +47,15 @@ eurl <<- ez_tbl_url
   
   if(ez$status_code == 200){
     incProgress(amount = 0.5, message = "Trades Table Complete")
-    ez_ <- do.call(rbind, httr::content(ez_))
-    ez_tbl(ez_)
+    ez <- do.call(rbind.data.frame, httr::content(ez))
+    ez_tbl(ez)
+    
+    incProgress(amount = 0.1, message = "Requesting Optimal Range")
+    op <- uni_optimize(trades = ez, 
+                 budget = input$budget, 
+                 denominate = input$denominate)
+    op_ <<- op
+    
   } else {
     stop("There's been an issue with the table")
   }
