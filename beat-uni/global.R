@@ -13,6 +13,7 @@ get_latest_block <- function(){
 
 secret_url <- readLines("secret_url.txt")
 
+# Optimize ----
 uni_optimize <- function(trades, budget, denominate, p1 = 0, p2 = 0, 
                          decimal_x = 1e8, decimal_y = 1e18, fee = 0.003){
   budget <- as.numeric(budget)
@@ -104,7 +105,8 @@ uni_optimize <- function(trades, budget, denominate, p1 = 0, p2 = 0,
   profit$position$liquidity <- as.numeric(profit$position$liquidity)
   
   ret <- list(
-    sv, grid,
+    init_sv,
+    init_grid,
     p1 = p1,
     p2 = p2,
     init_params = init_params,
@@ -118,3 +120,117 @@ uni_optimize <- function(trades, budget, denominate, p1 = 0, p2 = 0,
   
 }
 
+
+# Plane 3D Viz ---- 
+plane_fit <- function(init_grid, sv, denom_label, price_label, allo_label){
+  
+  init_field <- cbind(init_grid, sv)
+  colnames(init_field) <- c("allocation","low_price","strategy_value")
+  x <- init_field$allocation
+  y <- init_field$low_price
+  z <- init_field$strategy_value
+  
+  
+  # Create a data frame
+  data <- data.frame(x = x, y = y, z = z)
+  
+  # Fit a plane using Multivariate Regression
+  model <- lm(z ~ x + y, data = data)
+  
+  # Obtain the estimated coefficients
+  a <- coef(model)[1]
+  b <- coef(model)[2]
+  c <- coef(model)[3]
+  
+  # Generate a grid of x and y values
+  x_range <- range(x)
+  y_range <- range(y)
+  x_grid <- seq(x_range[1], x_range[2], length.out = 50)
+  y_grid <- seq(y_range[1], y_range[2], length.out = 50)
+  grid <- expand.grid(x = x_grid, y = y_grid)
+  
+  # Calculate the corresponding z values using the estimated plane equation
+  z_grid <- matrix(a + b * grid$x + c * grid$y, nrow = length(x_grid), byrow = TRUE)
+  
+  # Generate the 3D scatter plot
+  plot_ly(data = data) %>%
+    add_trace(name = "Estimated Profit (Strategy Value)",
+              x = ~x,
+              y = ~y,
+              z = ~z,
+              mode = "markers",
+              marker = list(
+                size = 3,
+                color = ~z,
+                colorscale = "Viridis"
+              )
+    ) %>%
+    add_surface(name = "Best Fit Plane",
+                x = x_grid,
+                y = y_grid,
+                z = z_grid,
+                colorscale = "Viridis",
+                showscale = FALSE
+    ) %>% 
+    layout(showlegend = TRUE,
+           scene = list(
+             xaxis = list(title = paste0("Allocation (",denom_label,")")),
+             yaxis = list(title = paste0("Low Price (", price_label, ")")),
+             zaxis = list(title = paste0("Strategy Value (",allo_label,")"),
+                          range = c(0,1.1*max(z)))
+           )
+    )
+  
+}
+
+#plane_fit(init_grid, sv,"ETH","ETH/BTC","ETH")
+
+# Grid 3D Viz ----
+
+grid_fit <- function(init_grid, sv, denom_label, price_label, allo_label){
+  
+  init_field <- cbind(init_grid, sv)
+  colnames(init_field) <- c("allocation","low_price","strategy_value")
+  x <- init_field$allocation
+  y <- init_field$low_price
+  z <- init_field$strategy_value
+  
+  # Define the grid for interpolation
+  grid_x <- sort(unique(x))
+  grid_y <- sort(unique(y))
+  
+  # Perform bilinear interpolation to estimate z values on the grid
+  interp_z <- interp(x, y, z, xo = grid_x, yo = grid_y, linear = FALSE)$z
+  
+  
+  # Create a 3D plot with Plotly
+  plot_ly(data = data) %>%
+    add_trace(name = "Estimated Profit (Strategy Value)",
+              x = ~x,
+              y = ~y,
+              z = ~z,
+              mode = "markers",
+              marker = list(
+                size = 3,
+                color = ~z,
+                colorscale = "Jet"
+              )) %>% 
+    add_surface(
+      x = grid_x,
+      y = grid_y,
+      z = interp_z,
+      colorscale = "Cividis",
+      showscale = FALSE
+    ) %>% 
+    layout(showlegend = TRUE,
+           scene = list(
+             xaxis = list(title = paste0("Allocation (",denom_label,")")),
+             yaxis = list(title = paste0("Low Price (", price_label, ")")),
+             zaxis = list(title = paste0("Strategy Value (",allo_label,")"),
+                          range = c(0,1.1*max(z)))
+           )
+    )
+  
+}
+
+# grid_fit(init_grid, sv,"ETH","ETH/BTC","ETH")
