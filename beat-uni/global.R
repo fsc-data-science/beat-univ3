@@ -5,6 +5,10 @@ library(reactable)
 library(uniswap)
 options(scipen = 99) # don't reformat large numbers
 
+# read default parameter optimization from save 
+# to load app w/ visuals 
+starter_op <- readRDS("op_16m10k_base.rds")
+starter_op$init_sv[starter_op$init_sv > 0] <- -99
 
 get_latest_block <- function(){
   latest_info <- fromJSON('https://api.blockcypher.com/v1/eth/main')
@@ -105,8 +109,9 @@ uni_optimize <- function(trades, budget, denominate, p1 = 0, p2 = 0,
   profit$position$liquidity <- as.numeric(profit$position$liquidity)
   
   ret <- list(
-    init_sv,
-    init_grid,
+    init_sv = sv,
+    init_grid = grid,
+    trades = trades,
     p1 = p1,
     p2 = p2,
     init_params = init_params,
@@ -119,6 +124,89 @@ uni_optimize <- function(trades, budget, denominate, p1 = 0, p2 = 0,
   return(ret)
   
 }
+
+# ---- 
+
+# Price Chart ---- 
+
+# Position Cards ----
+
+start_card <- function(position_details, budget, xname = "WBTC", yname = "ETH"){
+  
+  svg_string <- {
+      '
+      <svg xmlns="http://www.w3.org/2000/svg" width="175" height="150" viewBox="0 0 175 175">
+  <!-- Background -->
+  <rect width="100%" height="100%" fill="#10151A"></rect>
+  <!-- Table Outline -->
+  <rect x="0" y="0" width="175" height="175" fill="none" stroke="#FFFFFF" stroke-width="2"></rect>
+  <!-- Table Headers -->
+  <text x="50" y="20" fill="#FFFFFF" font-size="20" font-family="Arial, sans-serif">START</text>
+  <!-- Table Rows -->
+  <text x="10" y="50" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif">WBTC:</text>
+  <text x="150" y="50" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif" text-anchor = "end">TOKEN0AMOUNT</text>
+  <text x="10" y="70" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif">ETH:</text>
+  <text x="150" y="70" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif" text-anchor = "end">TOKEN1AMOUNT</text>
+  <text x="10" y="90" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif">Prices (ETH/BTC):</text>
+  <text x="10" y="110" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif">Lower:</text>
+  <text x="150" y="110" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif" text-anchor = "end">PRICELOW</text>
+  <text x="10" y="130" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif">Upper:</text>
+  <text x="150" y="130" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif" text-anchor = "end">PRICEHIGH</text>
+  <text x="40" y="160" fill="#FFFFFF" font-size="20" font-family="Arial, sans-serif">Value: BUDGET</text>
+</svg>
+'
+  }
+  
+  svg_string <- gsub("TOKEN0AMOUNT", round(position_details$x, 4), svg_string)
+  svg_string <- gsub("TOKEN1AMOUNT", round(position_details$y, 4), svg_string)
+  svg_string <- gsub("PRICELOW", round(tick_to_price(position_details$tick_lower, 1e10), 3), svg_string)
+  svg_string <- gsub("PRICEHIGH", round(tick_to_price(position_details$tick_upper, 1e10), 3), svg_string)
+  svg_string <- gsub("BUDGET", budget, svg_string)
+  
+    HTML(svg_string)
+}
+
+end_card <- function(strategy_details, xname = "WBTC", yname = "ETH"){
+  svg_string <- {
+    '
+      <svg xmlns="http://www.w3.org/2000/svg" width="175" height="150" viewBox="0 0 175 175">
+  <!-- Background -->
+  <rect width="100%" height="100%" fill="#10151A"></rect>
+  <!-- Table Outline -->
+  <rect x="0" y="0" width="175" height="175" fill="none" stroke="#FFFFFF" stroke-width="2"></rect>
+  <!-- Table Headers -->
+  <text x="50" y="20" fill="#FFFFFF" font-size="20" font-family="Arial, sans-serif">END</text>
+  <!-- Table Rows -->
+  <text x="10" y="50" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif">WBTC:</text>
+  <text x="150" y="50" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif" text-anchor = "end">TOKEN0AMOUNT</text>
+  <text x="10" y="70" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif">ETH:</text>
+  <text x="150" y="70" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif" text-anchor = "end">TOKEN1AMOUNT</text>
+  <text x="10" y="90" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif">Fee Revenue:</text>
+  <text x="10" y="110" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif">WBTC:</text>
+  <text x="150" y="110" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif" text-anchor = "end">FEEBTC</text>
+  <text x="10" y="130" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif">ETH:</text>
+  <text x="150" y="130" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif" text-anchor = "end">FEEETH</text>
+  <text x="40" y="160" fill="#FFFFFF" font-size="20" font-family="Arial, sans-serif">Value: STRAT_VALUE</text>
+</svg>
+'
+  }
+  
+  svg_string <- gsub("TOKEN0AMOUNT", round(strategy_details$balances$token0, 4), svg_string)
+  svg_string <- gsub("TOKEN1AMOUNT", round(strategy_details$balances$token1, 4), svg_string)
+  svg_string <- gsub("FEEBTC", round(strategy_details$fees$amount0_fees, 3), svg_string)
+  svg_string <- gsub("FEEETH", round(strategy_details$fees$amount1_fees, 3), svg_string)
+  svg_string <- gsub("STRAT_VALUE", round(strategy_details$value, 2), svg_string)
+  
+  HTML(svg_string)
+  
+}
+
+# Block Price Chart ----
+
+plot_price <- function(){
+  
+}
+# Block Price w/ Rectangle ----
 
 
 # Plane 3D Viz ---- 

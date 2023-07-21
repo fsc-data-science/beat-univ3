@@ -2,6 +2,8 @@
 /*******************/
 /*PUT CUSTOM CLASSES HERE*/
 /*******************/
+
+
 .input-bar {
   display: flex;
 }
@@ -41,7 +43,7 @@ body {
   padding-left: 10%;
   padding-right: 10%;
   padding-top: 4%;
-  color: #C4CDD5;
+  color: #FFFFFF;
   font-family: 'Inter';
   font-size: 18px;
   font-weight: 400;
@@ -247,8 +249,8 @@ input[type=number] {
 }
 
 .ReactTable {
-  background-color: #171e25;
-    color: #C4CDD5;
+  background-color: #10151A;
+    color: #FFFFFF;
     border: none;
 }
 
@@ -265,7 +267,7 @@ input[type=number] {
 }
 .rt-pagination {
   margin: 0;
-  background: #171e25;
+  background: #10151A;
     opacity: 0.5;
   border-bottom: 1px solid #C4CDD5;
   border-top: 1px solid #C4CDD5;

@@ -15,16 +15,30 @@ observeEvent(input$latest_block, {
 })
 
  # ez swap table 
-ez_tbl <- reactiveVal(data.frame())  
-results <- reactiveVal(list())
+ez_tbl <- reactiveVal(starter_op$trades)  
+results <- reactiveVal(starter_op)
+
+output$start_ <- renderUI({
+  start_card(position_details = results()$position_details, budget = input$budget, xname = "WBTC", yname = "ETH")
+})
+
+output$end_ <- renderUI({
+  end_card(strategy_details = results()$strategy_details, xname = "WBTC", yname = "ETH")
+})
+
 
 output$ez_swap_tbl <- renderReactable({
-  reactable(ez_tbl())
+  swp_tbl <- ez_tbl()[, c("block_number","amount0_adjusted", "amount1_adjusted","price")]
+  swp_tbl$action <- ifelse(swp_tbl$amount0_adjusted < 0, "Sell ETH", "Buy ETH")
+  swp_tbl <- swp_tbl[, c(1,5,2,3,4)]
+  colnames(swp_tbl) <- c("Block","Action", "WBTC", "ETH", "Price (ETH/WBTC)")
+  reactable(
+    swp_tbl
+            )
 })
 
 # On Submit ----
 observeEvent(input$submit, {
-  
   # Generate EZ Trade 
 ez_tbl_url <- paste0(secret_url,
          "make_ez?from_block=",
@@ -54,7 +68,7 @@ eurl <<- ez_tbl_url
     incProgress(amount = 0.1, message = "Requesting Optimal Range")
     op <- uni_optimize(trades = ez, 
                  budget = input$budget, 
-                 denominate = input$denominate)
+                 denominate = 1)
     results(op)
     op_ <<- op
     

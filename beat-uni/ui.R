@@ -29,14 +29,12 @@ div(class = "main-app",
     div(class = "input-bar",
           div(class = "latest-block", actionButton(inputId = "latest_block", label = "Real Time")),
           fluidRow(
-            column(3, numericInput(inputId = "budget", label = "Budget",
-                                   value = 100, min = 1, max = 1000, step = 1)),   
-            column(3, numericInput(inputId = "denominate", label = "Denom. (1 or 0)", 
-                                   value = 1, min = 0, max = 1, step = 1)),   
-            column(3, numericInput(inputId = "from_block", label = "From Block", 
-                                   value = 17000000, min = 13000000, step = 1)),   
-            column(3, numericInput(inputId = "to_block", label = "To Block",
-                                   value = 17010000, min = 13001000, step = 1)
+            column(4, numericInput(inputId = "budget", label = "Budget",
+                                   value = 100, min = 1, max = 1000, step = 1)),
+            column(4, numericInput(inputId = "from_block", label = "From Block", 
+                                   value = 16000000, min = 13000000, step = 1)),   
+            column(4, numericInput(inputId = "to_block", label = "To Block",
+                                   value = 16010000, min = 13001000, step = 1)
                    )
           ),
           div(class = "submit-btn", actionButton(inputId = "submit", label = "Submit"))  
@@ -84,6 +82,8 @@ div(class = "main-app",
       ),
       tabPanel(title = "Result",
                hr(),
+               uiOutput("start_"),
+               uiOutput("end_"),
                reactableOutput("ez_swap_tbl")
                )
     )
