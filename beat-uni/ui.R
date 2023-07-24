@@ -53,10 +53,10 @@ fluidPage(
                br(),
                p(class = 'app-title', "Beating Uniswap v3"),
                p("Uniswap v3 enables concentrated liquidity.
-                   Users created automated strategies to support traders using the Uniswap DEX. The more 
+                   Users create automated strategies to support traders using the Uniswap DEX. The more 
                    accurately users forecast price ranges the higher % of trading fees they earn."),
-               p("This tool generates the 'perfect' position for known trades so users
-                     can benchmark their performance given:"),
+               p("This tool calculates the 'perfect' range for known trades allowing users
+                     to benchmark their performance given:"),
                HTML("
          <li>A Budget (e.g. 100 ETH)</li>
          <li>The trades over a time period</li>
