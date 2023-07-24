@@ -2,6 +2,7 @@ library(shiny)
 library(jsonlite)
 library(httr)
 library(reactable)
+library(plotly)
 library(uniswap)
 options(scipen = 99) # don't reformat large numbers
 
@@ -60,7 +61,7 @@ uni_optimize <- function(trades, budget, denominate, p1 = 0, p2 = 0,
   )
   
   # Use naive search to get close-enough initial parameters for optimization
-  low_price <- (1:9)/10*p1
+  low_price <- (3:9)/10*p1
   amount_1 <- c(1, budget*(1:9)/10)
   
   grid <- expand.grid(x = amount_1, y = low_price)
@@ -135,7 +136,7 @@ start_card <- function(position_details, budget, xname = "WBTC", yname = "ETH"){
   
   svg_string <- {
       '
-      <svg xmlns="http://www.w3.org/2000/svg" width="175" height="150" viewBox="0 0 175 175">
+      <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 175 175">
   <!-- Background -->
   <rect width="100%" height="100%" fill="#10151A"></rect>
   <!-- Table Outline -->
@@ -169,13 +170,13 @@ start_card <- function(position_details, budget, xname = "WBTC", yname = "ETH"){
 end_card <- function(strategy_details, xname = "WBTC", yname = "ETH"){
   svg_string <- {
     '
-      <svg xmlns="http://www.w3.org/2000/svg" width="175" height="150" viewBox="0 0 175 175">
+      <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 175 175">
   <!-- Background -->
   <rect width="100%" height="100%" fill="#10151A"></rect>
   <!-- Table Outline -->
   <rect x="0" y="0" width="175" height="175" fill="none" stroke="#FFFFFF" stroke-width="2"></rect>
   <!-- Table Headers -->
-  <text x="50" y="20" fill="#FFFFFF" font-size="20" font-family="Arial, sans-serif">END</text>
+  <text x="60" y="20" fill="#FFFFFF" font-size="20" font-family="Arial, sans-serif">END</text>
   <!-- Table Rows -->
   <text x="10" y="50" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif">WBTC:</text>
   <text x="150" y="50" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif" text-anchor = "end">TOKEN0AMOUNT</text>
@@ -201,13 +202,122 @@ end_card <- function(strategy_details, xname = "WBTC", yname = "ETH"){
   
 }
 
+calc_forecast <- function(optim_result, budget){
+  
+  p1 = optim_result$p1
+  p2 = optim_result$p2
+  
+  p_low = tick_to_price(tick = optim_result$position_details$tick_lower, 1e10)
+  if(p_low >= p2){
+    p_low = (p_low / p1) * p2
+  }
+  
+  a1 = optim_result$position_details$y
+  a0 = (budget-a1) / p2
+  
+  ar1_position <- uniswap::price_all_tokens(x = a0, y = a1, sqrtpx96 = price_to_sqrtpx96(p2, F, 1e10),
+                                            decimal_x = 1e8, decimal_y = 1e18, 
+                                            tick_lower = get_closest_tick(p_low, 1, 1e10)$tick,
+                                            tick_upper = NULL)
+  return(ar1_position)
+}
+
+forecast_card <- function(ar1_position, budget, xname = "WBTC", yname = "ETH"){
+ 
+  
+  svg_string <- {
+    '
+      <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 175 175">
+  <!-- Background -->
+  <rect width="100%" height="100%" fill="#10151A"></rect>
+  <!-- Table Outline -->
+  <rect x="0" y="0" width="175" height="175" fill="none" stroke="#FFFFFF" stroke-width="2"></rect>
+  <!-- Table Headers -->
+  <text x="40" y="20" fill="#FFFFFF" font-size="20" font-family="Arial, sans-serif">FORECAST</text>
+  <!-- Table Rows -->
+  <text x="10" y="50" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif">WBTC:</text>
+  <text x="150" y="50" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif" text-anchor = "end">TOKEN0AMOUNT</text>
+  <text x="10" y="70" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif">ETH:</text>
+  <text x="150" y="70" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif" text-anchor = "end">TOKEN1AMOUNT</text>
+  <text x="10" y="90" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif">Prices (ETH/BTC):</text>
+  <text x="10" y="110" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif">Lower:</text>
+  <text x="150" y="110" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif" text-anchor = "end">PRICELOW</text>
+  <text x="10" y="130" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif">Upper:</text>
+  <text x="150" y="130" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif" text-anchor = "end">PRICEHIGH</text>
+  <text x="40" y="160" fill="#FFFFFF" font-size="20" font-family="Arial, sans-serif">Value: BUDGET</text>
+</svg>
+'
+  }
+  
+  svg_string <- gsub("TOKEN0AMOUNT", round(ar1_position$amount_x, 4), svg_string)
+  svg_string <- gsub("TOKEN1AMOUNT", round(ar1_position$amount_y, 4), svg_string)
+  svg_string <- gsub("PRICELOW", round(ar1_position$price_lower, 3), svg_string)
+  svg_string <- gsub("PRICEHIGH", round(ar1_position$price_upper, 3), svg_string)
+  svg_string <- gsub("BUDGET", budget, svg_string)
+  
+  HTML(svg_string)
+}
+
 # Block Price Chart ----
 
-plot_price <- function(){
-  
+plot_price <- function(trades){
+plot_ly() %>% 
+    add_trace(data = trades, 
+        x = ~block_number, y = ~price, 
+        size = ~abs(amount1_adjusted), type = "scatter",
+        text = paste0(
+          "Block #", format(trades$block_number, big.mark = ","),
+          "\nPrice: ", trades$price, 
+          "\nETH Size:", abs(trades$amount1_adjusted)),
+        hoverinfo = "text",
+        mode = "markers+lines") %>% 
+    layout(
+      title = list(text = "Trades (Price & ETH Volume)", y = 0.95),
+      xaxis = list(title = "Block #"),
+      yaxis = list(title = "Price (ETH/BTC)", 
+                   range = c(0.995*min(trades$price), 
+                             1.005*max(trades$price)))
+    )
 }
 # Block Price w/ Rectangle ----
 
+plot_price_lines <- function(trades, price_low, price_high, forecast_low, forecast_high){
+  
+  minx <- min(trades$block_number)
+  maxx <- max(trades$block_number)
+  miny <- 0.995 * min(price_low, min(trades$price), min(forecast_low))
+  maxy <- 1.005 * max(price_high, max(trades$price), max(forecast_high))
+  
+  plot_ly() %>% 
+    add_trace(x = c(minx, maxx), y = c(price_high, price_high),
+              type = "scatter", mode = "lines",name = paste0("Range: ", price_high),
+              line = list(dash = "dash", color = "blue")) %>%
+    add_trace(x = c(minx, maxx), y = c(price_low, price_low),
+              type = "scatter", mode = "lines", name = paste0("Range: ", price_low),
+              line = list(dash = "dash", color = "blue")) %>% 
+    add_trace(x = c(minx, maxx), y = c(forecast_high, forecast_high),
+              type = "scatter", mode = "lines",name = paste0("Forecast: ", forecast_high),
+              line = list(dash = "dash", color = "lightblue")) %>%
+    add_trace(x = c(minx, maxx), y = c(price_low, price_low),
+              type = "scatter", mode = "lines", name = paste0("Forecast: ", forecast_low),
+              line = list(dash = "dash", color = "lightblue")) %>% 
+    add_trace(data = trades, 
+          x = ~block_number, y = ~price, name = "Trades & Volume",
+          size = ~abs(amount1_adjusted), type = "scatter",
+          text = paste0(
+            "Block #", format(trades$block_number, big.mark = ","),
+            "\nPrice: ", trades$price, 
+            "\nETH Vol:", abs(trades$amount1_adjusted)),
+          hoverinfo = "text",
+          mode = "markers+lines") %>% 
+    layout(
+      title = list(text = "Trades (Price & ETH Volume)", y = 0.95),
+      xaxis = list(title = "Block #"),
+      yaxis = list(title = "Price (ETH/BTC)", 
+                   range = c(miny, maxy))
+    )
+  
+}
 
 # Plane 3D Viz ---- 
 plane_fit <- function(init_grid, sv, denom_label, price_label, allo_label){
@@ -277,11 +387,13 @@ plane_fit <- function(init_grid, sv, denom_label, price_label, allo_label){
 
 grid_fit <- function(init_grid, sv, denom_label, price_label, allo_label){
   
-  init_field <- cbind(init_grid, sv)
+  init_field <- cbind(init_grid, sv*-1)
   colnames(init_field) <- c("allocation","low_price","strategy_value")
   x <- init_field$allocation
   y <- init_field$low_price
   z <- init_field$strategy_value
+  
+  data = cbind(x,y,z)
   
   # Define the grid for interpolation
   grid_x <- sort(unique(x))
@@ -292,15 +404,15 @@ grid_fit <- function(init_grid, sv, denom_label, price_label, allo_label){
   
   
   # Create a 3D plot with Plotly
-  plot_ly(data = data) %>%
+  plot_ly() %>%
     add_trace(name = "Estimated Profit (Strategy Value)",
-              x = ~x,
-              y = ~y,
-              z = ~z,
+              x = x,
+              y = y,
+              z = z,
               mode = "markers",
               marker = list(
                 size = 3,
-                color = ~z,
+                color = z,
                 colorscale = "Jet"
               )) %>% 
     add_surface(

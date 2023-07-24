@@ -23,7 +23,7 @@ fluidPage(
     )
   }),
   hr(class = "break-line"),
-  # centered main app 
+  # centered main app ----
 div(class = "main-app",
     # user inputs budget, denominate, from_block, to_block
     div(class = "input-bar",
@@ -41,24 +41,21 @@ div(class = "main-app",
     ),
     tabsetPanel(
       tabPanel(title = "Welcome", 
-        div(class = 'intro-text',
-            br(),
-            p("Beating Uniswap v3"),
-            p("Uniswap v3 allows for concentrated liquidity in automatic market making.
-        The more correct you are about the price range a token trades at 
-        the higher % of trading fees you can earn."),
-            p("This tool generates the 'perfect' position given a set of trades for liquidity
-         providers to benchmark their performance given:"),
-            HTML("
-         <li>A Budget</li>
-         <li>Which token to optimize for</li>
-         <li>The trades that occured (using Quicknode if data is real-time)</li>
+               div(class = 'intro-text',
+                   br(),
+                   p(class = 'app-title', "Beating Uniswap v3"),
+                   p("Uniswap v3 enables concentrated liquidity.
+                   Users created automated strategies to support traders using the Uniswap DEX. The more 
+                   accurately users forecast price ranges the higher % of trading fees they earn."),
+                   p("This tool generates the 'perfect' position given a set of trades so users
+                     can benchmark their performance given:"),
+                   HTML("
+         <li>A Budget (e.g. 100 ETH)</li>
+         <li>The trades over a time period</li>
          <br>
          "
-            ),
-           div(class = 'uni-img', tags$img(src = "uniswap_v3_example.png", width = "750px"))
-            
-        )
+                   )),
+           div(class = 'uni-img', tags$img(src = "uniswap_v3_example.png", width = "800px"))
         ),
       tabPanel(title = "Pipeline",
           hr(),
@@ -82,13 +79,23 @@ div(class = "main-app",
       ),
       tabPanel(title = "Result",
                hr(),
-               uiOutput("start_"),
+               fluidRow(
+                 column(3, 
+               tagList(
+                 uiOutput("start_"),
                uiOutput("end_"),
+               uiOutput("forecast_")
+                        ),
+               ),
+               column(9,
+               plotlyOutput("price_plot")
+                      )
+               ),
                reactableOutput("ez_swap_tbl")
                )
-    )
-)
-)
+    ) # tabset 
+) # main app 
+)# page 
 
 
 

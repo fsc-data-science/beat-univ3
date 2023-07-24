@@ -26,6 +26,15 @@ output$end_ <- renderUI({
   end_card(strategy_details = results()$strategy_details, xname = "WBTC", yname = "ETH")
 })
 
+ar1 <- eventReactive(results(), {
+  
+  calc_forecast(optim_result = results(), budget = input$budget)
+  
+} )
+
+output$forecast_ <- renderUI({
+  forecast_card(ar1(), budget = input$budget, xname = "WBTC", yname = "ETH")
+})
 
 output$ez_swap_tbl <- renderReactable({
   swp_tbl <- ez_tbl()[, c("block_number","amount0_adjusted", "amount1_adjusted","price")]
@@ -36,6 +45,17 @@ output$ez_swap_tbl <- renderReactable({
     swp_tbl
             )
 })
+
+output$price_plot <- renderPlotly({
+  
+  price_lower <- round(tick_to_price(results()$position_details$tick_lower, 1e10), 3)
+  price_upper <- round(tick_to_price(results()$position_details$tick_upper, 1e10), 3)
+  forecast_low <- round(ar1()$price_lower, 3)
+  forecast_high <- round(ar1()$price_upper, 3)
+  plot_price_lines(ez_tbl(), price_lower, price_upper, forecast_low, forecast_high)
+
+  })
+
 
 # On Submit ----
 observeEvent(input$submit, {
