@@ -3,9 +3,12 @@
 /*PUT CUSTOM CLASSES HERE*/
 /*******************/
 
-
-.input-bar {
-  display: flex;
+.main-app {
+  padding-top: 2%;
+  color: #FFFFFF;
+  font-family: "Inter", sans-serif;
+  font-size: 18px;
+  font-weight: 400;
 }
 
 .app-title {
@@ -16,6 +19,8 @@
   
 .input-bar {
   display: flex;
+  flex-direction: column;
+  margin: 0 0 0 10px;
 }
 
 .latest-block {
@@ -29,7 +34,6 @@
 
 .submit-btn {
   display: inline-block;
-    margin-top: 40px;
 }
 
 .uni-img {
@@ -41,21 +45,41 @@
 .intro-text {
   text-align: center;
 }
+
+.shiny-output-error {
+  font-size: 0px;
+}
+
+.sql-code {
+  white-space: pre-wrap;
+   background-color: #000000;
+  padding: 14px;
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  overflow-x: auto;
+}
+
+.sql-code .keyword {
+  color: #d1bbdf;
+}
+
+.sql-code .func_ {
+  color: #cfd4b1;
+}
+
+.sql-code .operator {
+  color: #a7d6ca;
+}
+
+
 /*******************/
 /*     GENERAL Page     */
 /*******************/
 body {
   background-color: #10151A;
-  background-attachment:fixed;
   background-size: 100% auto;
-  background-position: center;
-  padding-left: 10%;
-  padding-right: 10%;
-  padding-top: 4%;
-  color: #FFFFFF;
-  font-family: 'Inter';
-  font-size: 18px;
-  font-weight: 400;
 }
 
 a {
@@ -72,7 +96,6 @@ hr {
 
 .container-fluid {
   background-color: #10151A;
-  max-width: 1000px;
   margin: 0;
   height: 100%;
   padding-top: 48px;

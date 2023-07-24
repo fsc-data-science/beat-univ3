@@ -14,10 +14,29 @@ observeEvent(input$latest_block, {
   
 })
 
- # ez swap table 
+ # ez swap table (with default) ---- 
 ez_tbl <- reactiveVal(starter_op$trades)  
+
+output$ez_swap_tbl <- renderReactable({
+  swp_tbl <- ez_tbl()[, c("block_number","amount0_adjusted", "amount1_adjusted","price")]
+  swp_tbl$action <- ifelse(swp_tbl$amount0_adjusted < 0, "Sell ETH", "Buy ETH")
+  swp_tbl <- swp_tbl[, c(1,5,2,3,4)]
+  colnames(swp_tbl) <- c("Block","Action", "WBTC", "ETH", "Price")
+  reactable(
+    swp_tbl[, 2:5]
+  )
+})
+
+# Optimization Results (with default)----
 results <- reactiveVal(starter_op)
 
+ar1 <- eventReactive(results(), {
+  
+  calc_forecast(optim_result = results(), budget = input$budget)
+  
+} )
+
+# Cards ----
 output$start_ <- renderUI({
   start_card(position_details = results()$position_details, budget = input$budget, xname = "WBTC", yname = "ETH")
 })
@@ -26,25 +45,11 @@ output$end_ <- renderUI({
   end_card(strategy_details = results()$strategy_details, xname = "WBTC", yname = "ETH")
 })
 
-ar1 <- eventReactive(results(), {
-  
-  calc_forecast(optim_result = results(), budget = input$budget)
-  
-} )
-
 output$forecast_ <- renderUI({
   forecast_card(ar1(), budget = input$budget, xname = "WBTC", yname = "ETH")
 })
 
-output$ez_swap_tbl <- renderReactable({
-  swp_tbl <- ez_tbl()[, c("block_number","amount0_adjusted", "amount1_adjusted","price")]
-  swp_tbl$action <- ifelse(swp_tbl$amount0_adjusted < 0, "Sell ETH", "Buy ETH")
-  swp_tbl <- swp_tbl[, c(1,5,2,3,4)]
-  colnames(swp_tbl) <- c("Block","Action", "WBTC", "ETH", "Price (ETH/WBTC)")
-  reactable(
-    swp_tbl
-            )
-})
+# Plots ----
 
 output$price_plot <- renderPlotly({
   
@@ -56,6 +61,19 @@ output$price_plot <- renderPlotly({
 
   })
 
+output$grid_plot <- renderPlotly({
+  grid_fit(results()$init_grid, results()$init_sv, "ETH","ETH/BTC", "ETH")
+})
+
+output$plane_plot <- renderPlotly({
+  plane_fit(results()$init_grid, results()$init_sv, "ETH","ETH/BTC", "ETH")
+})
+
+# SQL Query ----
+
+output$sql <- renderUI({
+  div(class = "sql-code", sql_highlight(query_txt(input$from_block, input$to_block)))
+})
 
 # On Submit ----
 observeEvent(input$submit, {

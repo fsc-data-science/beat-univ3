@@ -4,6 +4,8 @@ library(httr)
 library(reactable)
 library(plotly)
 library(uniswap)
+library(akima)
+
 options(scipen = 99) # don't reformat large numbers
 
 # read default parameter optimization from save 
@@ -61,7 +63,7 @@ uni_optimize <- function(trades, budget, denominate, p1 = 0, p2 = 0,
   )
   
   # Use naive search to get close-enough initial parameters for optimization
-  low_price <- (3:9)/10*p1
+  low_price <- (1:9)/10*p1
   amount_1 <- c(1, budget*(1:9)/10)
   
   grid <- expand.grid(x = amount_1, y = low_price)
@@ -244,7 +246,7 @@ forecast_card <- function(ar1_position, budget, xname = "WBTC", yname = "ETH"){
   <text x="150" y="110" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif" text-anchor = "end">PRICELOW</text>
   <text x="10" y="130" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif">Upper:</text>
   <text x="150" y="130" fill="#FFFFFF" font-size="16" font-family="Arial, sans-serif" text-anchor = "end">PRICEHIGH</text>
-  <text x="40" y="160" fill="#FFFFFF" font-size="20" font-family="Arial, sans-serif">Value: BUDGET</text>
+  <text x="40" y="160" fill="#FFFFFF" font-size="20" font-family="Arial, sans-serif">Budget: BUDGET</text>
 </svg>
 '
   }
@@ -285,8 +287,8 @@ plot_price_lines <- function(trades, price_low, price_high, forecast_low, foreca
   
   minx <- min(trades$block_number)
   maxx <- max(trades$block_number)
-  miny <- 0.995 * min(price_low, min(trades$price), min(forecast_low))
-  maxy <- 1.005 * max(price_high, max(trades$price), max(forecast_high))
+  miny <- 0.99 * min(price_low, min(trades$price), min(forecast_low))
+  maxy <- 1.01 * max(price_high, max(trades$price), max(forecast_high))
   
   plot_ly() %>% 
     add_trace(x = c(minx, maxx), y = c(price_high, price_high),
@@ -298,7 +300,7 @@ plot_price_lines <- function(trades, price_low, price_high, forecast_low, foreca
     add_trace(x = c(minx, maxx), y = c(forecast_high, forecast_high),
               type = "scatter", mode = "lines",name = paste0("Forecast: ", forecast_high),
               line = list(dash = "dash", color = "lightblue")) %>%
-    add_trace(x = c(minx, maxx), y = c(price_low, price_low),
+    add_trace(x = c(minx, maxx), y = c(forecast_low, forecast_low),
               type = "scatter", mode = "lines", name = paste0("Forecast: ", forecast_low),
               line = list(dash = "dash", color = "lightblue")) %>% 
     add_trace(data = trades, 
@@ -327,7 +329,6 @@ plane_fit <- function(init_grid, sv, denom_label, price_label, allo_label){
   x <- init_field$allocation
   y <- init_field$low_price
   z <- init_field$strategy_value
-  
   
   # Create a data frame
   data <- data.frame(x = x, y = y, z = z)
@@ -371,6 +372,7 @@ plane_fit <- function(init_grid, sv, denom_label, price_label, allo_label){
                 showscale = FALSE
     ) %>% 
     layout(showlegend = TRUE,
+           legend = list(orientation = "h", x = 0, y = -0.2),
            scene = list(
              xaxis = list(title = paste0("Allocation (",denom_label,")")),
              yaxis = list(title = paste0("Low Price (", price_label, ")")),
@@ -423,6 +425,7 @@ grid_fit <- function(init_grid, sv, denom_label, price_label, allo_label){
       showscale = FALSE
     ) %>% 
     layout(showlegend = TRUE,
+           legend = list(orientation = "h", x = 0, y = -0.2),
            scene = list(
              xaxis = list(title = paste0("Allocation (",denom_label,")")),
              yaxis = list(title = paste0("Low Price (", price_label, ")")),
@@ -434,3 +437,120 @@ grid_fit <- function(init_grid, sv, denom_label, price_label, allo_label){
 }
 
 # grid_fit(init_grid, sv,"ETH","ETH/BTC","ETH")
+
+
+# Query-Text Format ----
+
+sql_highlight <- function(sql_code) {
+  # Define the SQL keywords and their associated CSS classes
+  keywords <- list(
+    keyword = c("SELECT", "FROM", "WHERE", "GROUP BY", "ORDER BY", "HAVING", "JOIN", "INNER JOIN", "LEFT JOIN", "RIGHT JOIN", "FULL JOIN", "OUTER JOIN", "ON", "AS", "AND", "OR", "NOT", "IS", "NULL", "IN", "BETWEEN", "EXISTS", "LIKE", "LIMIT", "DISTINCT"),
+    func_ = c("COUNT", "SUM", "AVG", "MIN", "MAX"),
+    operator = c("=", "<", ">", "<=", ">=", "<>", "!=")
+  )
+  
+  sql_code <- gsub("<", "&lt;", sql_code)
+  sql_code <- gsub(">", "&gt;", sql_code)
+  
+  # Replace SQL keywords with HTML span elements containing CSS classes
+  for (k in names(keywords)) {
+    for (w in keywords[[k]]) {
+      sql_code <- gsub(paste0("\\b", w, "\\b"), paste0("<span class='", k, "'>", w, "</span>"), sql_code, ignore.case = TRUE)
+    }
+  }
+  sql_code <- gsub("<span class='operator'><</span<span class='operator'>></span>","<",sql_code)
+  
+  html <- htmltools::HTML(sql_code)
+  
+  return(html)
+}
+
+query_txt <- function(from_block, to_block){
+ 
+  query <- { 
+    " 
+  -- Gather relevant user inputs
+  -- as CTE within Flipside Studio
+  with inputs AS (
+    SELECT '0xcbcdf9626bc03e24f779434178a73a0b4bad62ed' as contract_address,
+    __FROM_BLOCK__ as from_block, concat('0x',trim(to_char(from_block,'XXXXXXXXXX'))) as hex_block_from,
+    __TO_BLOCK__ as to_block, concat('0x',trim(to_char(to_block,'XXXXXXXXXX'))) as hex_block_to,
+    ARRAY_CONSTRUCT('0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67', NULL, NULL
+    ) as event_topic_param
+  ),
+  
+  -- Get key pool details 
+  -- from Flipside dim_dex_liquidity_pools
+  pool_details AS (
+    select POOL_NAME, TOKEN1_SYMBOL, TOKEN1_DECIMALS, 
+    TOKEN0_SYMBOL, TOKEN0_DECIMALS,
+    ABS(TOKEN1_DECIMALS - TOKEN0_DECIMALS) as decimal_adjustment
+    from ethereum.core.dim_dex_liquidity_pools
+    where pool_address = (select lower(contract_address) from inputs)
+  ),
+  
+  -- Structure node request as JSON within Flipside Data Studio
+  create_rpc_request as (
+    SELECT contract_address, from_block, to_block,
+    livequery.utils.udf_json_rpc_call(
+      'eth_getLogs',
+      [{ 'address': contract_address,
+        'fromBlock': hex_block_from,
+        'toBlock': hex_block_to,
+        'topics': event_topic_param }]
+    ) AS rpc_request
+    FROM
+    inputs),
+  
+  -- POST request to Node with LiveQuery 
+  base AS (
+    SELECT livequery.live.udf_api(
+      'POST', -- method
+      '{eth-mainnet-url}', -- url
+      {},  -- default header
+      rpc_request, -- data
+      'charlie-quicknode' -- Unique registered secret
+    ) AS api_call
+    FROM create_rpc_request
+  ),
+  
+  -- Clean the response in Data Studio 
+  res AS (
+    SELECT
+    t.value:transactionHash::string as tx_hash,
+    t.value:address::string as address,
+    t.value:blockNumber::string as block_number,
+    regexp_substr_all(SUBSTR(t.value:data, 3, len(t.value:data)), '.{64}') as data
+    from base,
+    LATERAL FLATTEN(input => api_call:data:result) t
+  )
+  
+  -- Format to match Flipside Ethereum Uniswap v3 Schema
+  SELECT
+  address as pool_address,
+  tx_hash,
+  ethereum.public.udf_hex_to_int(block_number) as block_number,
+  ethereum.public.udf_hex_to_int('s2c',data[0]::STRING)::FLOAT/POW(10,(select TOKEN0_DECIMALS from pool_details)) as amount0_adjusted,
+  ethereum.public.udf_hex_to_int('s2c',data[1]::STRING)::FLOAT/POW(10,(select TOKEN1_DECIMALS from pool_details)) as amount1_adjusted,
+  ethereum.public.udf_hex_to_int(data[2]) as sqrtPX96,
+  POWER(sqrtPX96 / POWER(2, 96), 2)/(POWER(10, (SELECT decimal_adjustment from pool_details))) as price,
+  ethereum.public.udf_hex_to_int(data[3]) as liquidity,
+  ethereum.public.udf_hex_to_int(data[4]) as tick
+  FROM res
+  "
+  }
+
+  query <- gsub('__FROM_BLOCK__', from_block, query)
+  query <- gsub('__TO_BLOCK__', to_block, query)
+  
+  return(query)
+}
+
+preformatted_cell_renderer <- function(value) {
+  x = htmltools::tags$div(class = "sql-code",
+                          style = "white-space: pre-wrap;", sql_highlight(value))
+  htmltools::HTML(as.character(x))
+}
+
+
+
