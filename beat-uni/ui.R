@@ -17,7 +17,7 @@ fluidPage(
                      a(class="twitter", target = "_blank", href="https://twitter.com/flipsidecrypto", "Twitter"),
                      a(class="linkedin", target = "_blank", href="https://www.linkedin.com/company/flipside-crypto", "LinkedIn"),
                      a(class="discord", target = "_blank", href="https://discord.com/invite/ZmU3jQuu6W", "Discord"),
-                     a(href="https://next.flipsidecrypto.xyz/", target = "_blank", "Explore our data!")
+                     a(href="https://www.flipsidecrypto.xyz/", target = "_blank", "Explore our data!")
              )
            )
     )
@@ -70,11 +70,6 @@ fluidPage(
                       column(4, uiOutput("start_")),
                       column(4, uiOutput("end_")),
                       column(4, uiOutput("forecast_"))
-                    ),
-                    fluidRow(
-                      column(2, ""),
-                      column(8, plotlyOutput("grid_plot")),
-                      column(2, "")
                     )
            ))
     ),
